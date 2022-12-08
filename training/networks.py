@@ -123,6 +123,7 @@ class FullyConnectedLayer(torch.nn.Module):
         else:
             x = x.matmul(w.t())
             x = bias_act.bias_act(x, b, act=self.activation)
+        x.requires_grad_(True)
         return x
 
 #----------------------------------------------------------------------------
