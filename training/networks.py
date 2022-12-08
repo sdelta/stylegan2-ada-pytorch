@@ -94,11 +94,19 @@ class FullyConnectedLayer(torch.nn.Module):
         activation      = 'linear', # Activation function: 'relu', 'lrelu', etc.
         lr_multiplier   = 1,        # Learning rate multiplier.
         bias_init       = 0,        # Initial value for the additive bias.
+        trainable       = True      # Update weights of this layer during training?
     ):
         super().__init__()
         self.activation = activation
-        self.weight = torch.nn.Parameter(torch.randn([out_features, in_features]) / lr_multiplier)
-        self.bias = torch.nn.Parameter(torch.full([out_features], np.float32(bias_init))) if bias else None
+        if trainable:
+            self.weight = torch.nn.Parameter(torch.randn([out_features, in_features]) / lr_multiplier)
+            self.bias = torch.nn.Parameter(torch.full([out_features], np.float32(bias_init))) if bias else None
+        else:
+            self.register_buffer("weight", torch.randn([out_features, in_features]) / lr_multiplier)
+            if bias:
+                self.register_buffer("bias", torch.full([out_features], np.float32(bias_init)))
+            else:
+                self.bias = None
         self.weight_gain = lr_multiplier / np.sqrt(in_features)
         self.bias_gain = lr_multiplier
 
@@ -183,6 +191,7 @@ class MappingNetwork(torch.nn.Module):
         activation      = 'lrelu',  # Activation function: 'relu', 'lrelu', etc.
         lr_multiplier   = 0.01,     # Learning rate multiplier for the mapping layers.
         w_avg_beta      = 0.995,    # Decay for tracking the moving average of W during training, None = do not track.
+        trainable       = True
     ):
         super().__init__()
         self.z_dim = z_dim
@@ -201,11 +210,15 @@ class MappingNetwork(torch.nn.Module):
         features_list = [z_dim + embed_features] + [layer_features] * (num_layers - 1) + [w_dim]
 
         if c_dim > 0:
-            self.embed = FullyConnectedLayer(c_dim, embed_features)
+            self.embed = FullyConnectedLayer(c_dim, embed_features, trainable=trainable)
         for idx in range(num_layers):
             in_features = features_list[idx]
             out_features = features_list[idx + 1]
-            layer = FullyConnectedLayer(in_features, out_features, activation=activation, lr_multiplier=lr_multiplier)
+            layer = FullyConnectedLayer(
+                in_features, out_features,
+                activation=activation, lr_multiplier=lr_multiplier,
+                trainable=trainable
+            )
             setattr(self, f'fc{idx}', layer)
 
         if num_ws is not None and w_avg_beta is not None:
