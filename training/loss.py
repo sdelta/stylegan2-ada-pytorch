@@ -31,7 +31,7 @@ class CLIPSubloss(object):
         self.texts_features /= self.texts_features.norm(dim=-1, keepdim=True)
 
     def get_similarities(self, images):
-        image_features = model.encode_image(self.preprocess(images))
+        image_features = self.model.encode_image(self.preprocess(images))
         image_features /= image_features.norm(dim=-1, keepdim=True)
         return torch.matmul(self.texts_features, image_features.permute(1, 0))
 
