@@ -28,12 +28,12 @@ class CLIPSubloss(object):
         self.model = self.model.to(device)
         tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
         self.texts_features = self.model.encode_text(tokenizer([clip_phrase]).to(device))
-        self.texts_features /= self.text_features.norm(dim=-1, keepdim=True)
+        self.texts_features /= self.texts_features.norm(dim=-1, keepdim=True)
 
     def get_similarities(self, images):
         image_features = model.encode_image(self.preprocess(images))
         image_features /= image_features.norm(dim=-1, keepdim=True)
-        return torch.matmul(self.text_features, image_features.permute(1, 0))
+        return torch.matmul(self.texts_features, image_features.permute(1, 0))
 
 
 class StyleGAN2Loss(Loss):
