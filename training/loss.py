@@ -151,7 +151,7 @@ class StyleGAN2Loss(Loss):
                 (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain).backward()
 
         if do_clip:
-            with torch.autograd.prifler.record_function('clip_forward'):
+            with torch.autograd.profiler.record_function('clip_forward'):
                 gen_img, _gen_ws = self.run_G(gen_z, gen_c, sync=False)
                 gen_clip = self.clip_subloss.get_similarities(gen_img)
                 training_stats.report('Loss/clip/prob', gen_clip)
