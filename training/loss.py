@@ -25,7 +25,7 @@ class Loss:
 class CLIPSubloss(object):
     def __init__(self, device, clip_phrase):
         self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-B-32-quickgelu', pretrained='laion400m_e32')
-        self.model = model.to(device)
+        self.model = self.model.to(device)
         tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
         self.texts_features = self.model.encode_text(tokenizer([clip_phrase]))
         self.texts_features /= self.text_features.norm(dim=-1, keepdim=True)
