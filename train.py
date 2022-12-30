@@ -59,6 +59,9 @@ def setup_training_loop_kwargs(
     freezed    = None, # Freeze-D: <int>, default = 0 discriminator layers
     freezed_mapping = None, # Freeze G and D mapping networks: <bool>, default = False
 
+    clip_phrase = None,
+    clip_reg_interval = None,
+
     # Performance options (not included in desc).
     fp32       = None, # Disable mixed-precision training: <bool>, default = False
     nhwc       = None, # Use NHWC memory format with FP16: <bool>, default = False
@@ -186,6 +189,10 @@ def setup_training_loop_kwargs(
     args.G_opt_kwargs = dnnlib.EasyDict(class_name='torch.optim.Adam', lr=spec.lrate, betas=[0,0.99], eps=1e-8)
     args.D_opt_kwargs = dnnlib.EasyDict(class_name='torch.optim.Adam', lr=spec.lrate, betas=[0,0.99], eps=1e-8)
     args.loss_kwargs = dnnlib.EasyDict(class_name='training.loss.StyleGAN2Loss', r1_gamma=spec.gamma)
+
+    assert (clip_phrase is None) == (clip_reg_interval is None), 'clip_phrase and clip_reg_interval should be both defined or not'
+    args.loss_kwargs.clip_phrase = clip_phrase
+    args.clip_reg_interval = clip_reg_interval
 
     args.total_kimg = spec.kimg
     args.batch_size = spec.mb
@@ -422,6 +429,10 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--gamma', help='Override R1 gamma', type=float)
 @click.option('--kimg', help='Override training duration', type=int, metavar='INT')
 @click.option('--batch', help='Override batch size', type=int, metavar='INT')
+
+# CLIP guidance
+@click.option('--clip_phrase', help='guide all generator output to correspont to phrase', type=str)
+@clock.option('--clip_reg_interval', help='once in how many batches to optimize clip loss', type=int)
 
 # Discriminator augmentation.
 @click.option('--aug', help='Augmentation mode [default: ada]', type=click.Choice(['noaug', 'ada', 'fixed']))

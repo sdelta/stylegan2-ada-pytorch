@@ -8,6 +8,7 @@
 
 import numpy as np
 import torch
+import open_clip
 from torch_utils import training_stats
 from torch_utils import misc
 from torch_utils.ops import conv2d_gradfix
@@ -20,8 +21,23 @@ class Loss:
 
 #----------------------------------------------------------------------------
 
+
+class CLIPSubloss(object):
+    def __init__(self, device, clip_phrase):
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-B-32-quickgelu', pretrained='laion400m_e32')
+        self.model = model.to(device)
+        tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
+        self.texts_features = self.model.encode_text(tokenizer([clip_phrase]))
+        self.texts_features /= self.text_features.norm(dim=-1, keepdim=True)
+
+    def get_similarities(self, images):
+        image_features = model.encode_image(self.preprocess(images))
+        image_features /= image_features.norm(dim=-1, keepdim=True)
+        return torch.matmul(self.text_features, image_features.permute(1, 0))
+
+
 class StyleGAN2Loss(Loss):
-    def __init__(self, device, G_mapping, G_synthesis, D, augment_pipe=None, style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2):
+    def __init__(self, device, G_mapping, G_synthesis, D, augment_pipe=None, style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2, clip_phrase=None):
         super().__init__()
         self.device = device
         self.G_mapping = G_mapping
@@ -34,6 +50,7 @@ class StyleGAN2Loss(Loss):
         self.pl_decay = pl_decay
         self.pl_weight = pl_weight
         self.pl_mean = torch.zeros([], device=device)
+        self.clip_subloss = CLIPSubloss(device, clip_phrase) if clip_phrase is not None else None
 
     def run_G(self, z, c, sync, add_ws_grads=False):
         with misc.ddp_sync(self.G_mapping, sync):
@@ -57,11 +74,12 @@ class StyleGAN2Loss(Loss):
         return logits
 
     def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, sync, gain):
-        assert phase in ['Gmain', 'Greg', 'Gboth', 'Dmain', 'Dreg', 'Dboth']
+        assert phase in ['Gmain', 'Greg', 'Gboth', 'Dmain', 'Dreg', 'Dboth', 'clipreg']
         do_Gmain = (phase in ['Gmain', 'Gboth'])
         do_Dmain = (phase in ['Dmain', 'Dboth'])
         do_Gpl   = (phase in ['Greg', 'Gboth']) and (self.pl_weight != 0)
         do_Dr1   = (phase in ['Dreg', 'Dboth']) and (self.r1_gamma != 0)
+        do_clip  = phase in ['clipreg']
 
         # Gmain: Maximize logits for generated images.
         if do_Gmain:
@@ -131,5 +149,14 @@ class StyleGAN2Loss(Loss):
 
             with torch.autograd.profiler.record_function(name + '_backward'):
                 (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain).backward()
+
+        if do_clip:
+            with torch.autograd.prifler.record_function('clip_forward'):
+                gen_img, _gen_ws = self.run_G(gen_z, gen_c, sync=False)
+                gen_clip = self.clip_subloss.get_similarities(gen_img)
+                training_stats.report('Loss/clip/prob', gen_clip)
+            with torch.autograd.profiler.record_function('clip_backward'):
+                gen_clip.mean().mul(gain).backward()
+
 
 #----------------------------------------------------------------------------
