@@ -24,6 +24,7 @@ class Loss:
 
 class CLIPSubloss(object):
     def __init__(self, device, clip_phrase):
+        self.device = device
         self.model = open_clip.create_model('ViT-B-32-quickgelu', pretrained='laion400m_e32')
         self.model = self.model.to(device)
         tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
@@ -32,8 +33,8 @@ class CLIPSubloss(object):
 
     def _preprocess_images(self, images):
         resized = torch.nn.functional.interpolate(images, size=224, mode='bicubic')
-        mean = torch.tensor(open_clip.OPENAI_DATASET_MEAN).to(device).unsqueeze(1).unsqueeze(2)
-        std = torch.tensor(open_clip.OPENAI_DATASET_STD).to(device).unsqueeze(1).unsqueeze(2)
+        mean = torch.tensor(open_clip.OPENAI_DATASET_MEAN).to(self.device).unsqueeze(1).unsqueeze(2)
+        std = torch.tensor(open_clip.OPENAI_DATASET_STD).to(self.device).unsqueeze(1).unsqueeze(2)
         return (resized - mean) / std
         
     def get_similarities(self, images):
