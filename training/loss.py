@@ -31,7 +31,7 @@ class CLIPSubloss(object):
         self.texts_features /= self.texts_features.norm(dim=-1, keepdim=True)
 
     def _preprocess_images(self, images):
-        resized = torch.functional.interpolate(images, size=224, mode='bicubic')
+        resized = torch.nn.functional.interpolate(images, size=224, mode='bicubic')
         mean = torch.tensor(open_clip.OPENAI_DATASET_MEAN).to(device).unsqueeze(1).unsqueeze(2)
         std = torch.tensor(open_clip.OPENAI_DATASET_STD).to(device).unsqueeze(1).unsqueeze(2)
         return (resized - mean) / std
