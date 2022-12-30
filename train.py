@@ -432,7 +432,7 @@ class CommaSeparatedList(click.ParamType):
 
 # CLIP guidance
 @click.option('--clip_phrase', help='guide all generator output to correspont to phrase', type=str)
-@clock.option('--clip_reg_interval', help='once in how many batches to optimize clip loss', type=int)
+@click.option('--clip_reg_interval', help='once in how many batches to optimize clip loss', type=int)
 
 # Discriminator augmentation.
 @click.option('--aug', help='Augmentation mode [default: ada]', type=click.Choice(['noaug', 'ada', 'fixed']))
