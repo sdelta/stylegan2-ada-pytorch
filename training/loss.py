@@ -24,14 +24,20 @@ class Loss:
 
 class CLIPSubloss(object):
     def __init__(self, device, clip_phrase):
-        self.model, _, self.preprocess = open_clip.create_model_and_transforms('ViT-B-32-quickgelu', pretrained='laion400m_e32')
+        self.model = open_clip.create_model('ViT-B-32-quickgelu', pretrained='laion400m_e32')
         self.model = self.model.to(device)
         tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
         self.texts_features = self.model.encode_text(tokenizer([clip_phrase]).to(device))
         self.texts_features /= self.texts_features.norm(dim=-1, keepdim=True)
 
+    def _preprocess_images(self, images):
+        resized = torch.functional.interpolate(images, size=224, mode='bicubic')
+        mean = torch.tensor(open_clip.OPENAI_DATASET_MEAN).to(device).unsqueeze(1).unsqueeze(2)
+        std = torch.tensor(open_clip.OPENAI_DATASET_STD).to(device).unsqueeze(1).unsqueeze(2)
+        return (resized - mean) / std
+        
     def get_similarities(self, images):
-        image_features = self.model.encode_image(self.preprocess(images))
+        image_features = self.model.encode_image(self._preprocess_images(images))
         image_features /= image_features.norm(dim=-1, keepdim=True)
         return torch.matmul(self.texts_features, image_features.permute(1, 0))
 
