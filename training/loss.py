@@ -28,8 +28,9 @@ class CLIPSubloss(object):
         self.model = open_clip.create_model('ViT-B-32-quickgelu', pretrained='laion400m_e32')
         self.model = self.model.to(device)
         tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
-        self.texts_features = self.model.encode_text(tokenizer([clip_phrase]).to(device))
-        self.texts_features /= self.texts_features.norm(dim=-1, keepdim=True)
+        with torch.no_grad():
+            self.texts_features = self.model.encode_text(tokenizer([clip_phrase]).to(device))
+            self.texts_features /= self.texts_features.norm(dim=-1, keepdim=True)
 
     def _preprocess_images(self, images):
         resized = torch.nn.functional.interpolate(images, size=224, mode='bicubic')
@@ -40,7 +41,6 @@ class CLIPSubloss(object):
     def get_similarities(self, images):
         images_features = self.model.encode_image(self._preprocess_images(images))
         images_norm = images_features.norm(dim=-1, keepdim=True) + 1e-5
-        print(images_norm.cpu())
         return torch.matmul(self.texts_features, (images_features / images_norm).permute(1, 0))
 
 
@@ -159,13 +159,12 @@ class StyleGAN2Loss(Loss):
                 (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain).backward()
 
         if do_clip:
-            with torch.autograd.set_detect_anomaly(True):
-                with torch.autograd.profiler.record_function('clip_forward'):
-                    gen_img, _gen_ws = self.run_G(gen_z, gen_c, sync=False)
-                    gen_clip = self.clip_subloss.get_similarities(gen_img)
-                    training_stats.report('Loss/clip/prob', gen_clip)
-                with torch.autograd.profiler.record_function('clip_backward'):
-                    gen_clip.mean().mul(gain).backward()
+            with torch.autograd.profiler.record_function('clip_forward'):
+                gen_img, _gen_ws = self.run_G(gen_z, gen_c, sync=False)
+                gen_clip = self.clip_subloss.get_similarities(gen_img)
+                training_stats.report('Loss/clip/prob', gen_clip)
+            with torch.autograd.profiler.record_function('clip_backward'):
+                gen_clip.mean().mul(gain).backward()
 
 
 #----------------------------------------------------------------------------
