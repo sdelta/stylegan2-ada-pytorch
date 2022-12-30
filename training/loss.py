@@ -38,9 +38,9 @@ class CLIPSubloss(object):
         return (resized - mean) / std
         
     def get_similarities(self, images):
-        image_features = self.model.encode_image(self._preprocess_images(images))
-        image_features /= image_features.norm(dim=-1, keepdim=True)
-        return torch.matmul(self.texts_features, image_features.permute(1, 0))
+        images_features = self.model.encode_image(self._preprocess_images(images))
+        images_norm = images_features.norm(dim=-1, keepdim=True)
+        return torch.matmul(self.texts_features, (images_features / images_norm).permute(1, 0))
 
 
 class StyleGAN2Loss(Loss):
