@@ -45,7 +45,7 @@ class CLIPSubloss(object):
 
 
 class StyleGAN2Loss(Loss):
-    def __init__(self, device, G_mapping, G_synthesis, D, augment_pipe=None, style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2, clip_phrase=None):
+    def __init__(self, device, G_mapping, G_synthesis, D, augment_pipe=None, style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2, clip_phrase=None, clip_coef=10):
         super().__init__()
         self.device = device
         self.G_mapping = G_mapping
@@ -59,6 +59,7 @@ class StyleGAN2Loss(Loss):
         self.pl_weight = pl_weight
         self.pl_mean = torch.zeros([], device=device)
         self.clip_subloss = CLIPSubloss(device, clip_phrase) if clip_phrase is not None else None
+        self.clip_coef = clip_coef
 
     def run_G(self, z, c, sync, add_ws_grads=False):
         with misc.ddp_sync(self.G_mapping, sync):
@@ -164,7 +165,7 @@ class StyleGAN2Loss(Loss):
                 gen_clip = -self.clip_subloss.get_similarities(gen_img)
                 training_stats.report('Loss/clip/prob', gen_clip)
             with torch.autograd.profiler.record_function('clip_backward'):
-                gen_clip.mean().mul(gain).backward()
+                gen_clip.mean().mul(gain * self.clip_coef).backward()
 
 
 #----------------------------------------------------------------------------
