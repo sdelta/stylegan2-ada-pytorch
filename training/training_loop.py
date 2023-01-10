@@ -347,7 +347,7 @@ def training_loop(
         training_stats.report0('Timing/total_hours', (tick_end_time - start_time) / (60 * 60))
         training_stats.report0('Timing/total_days', (tick_end_time - start_time) / (24 * 60 * 60))
         if clip_reg_interval is not None:
-            fields += [f"clip_loss {loss_stats['Loss/clip/prob'].mean().cpu():.3f}"]
+            fields += [f"clip_loss {loss_stats['Loss/clip/prob']:.3f}"]
         if rank == 0:
             print(' '.join(fields))
 
