@@ -167,6 +167,8 @@ def training_loop(
         img = misc.print_module_summary(G, [z, c])
         misc.print_module_summary(D, [img, c])
 
+    loss_stats = training_stats.Collector(regex='Loss/*')
+        
     # Setup augmentation.
     if rank == 0:
         print('Setting up augmentation...')
@@ -327,6 +329,8 @@ def training_loop(
         if (not done) and (cur_tick != 0) and (cur_nimg < tick_start_nimg + kimg_per_tick * 1000):
             continue
 
+        loss_stats.update()   
+    
         # Print status line, accumulating the same information in stats_collector.
         tick_end_time = time.time()
         fields = []
@@ -342,6 +346,8 @@ def training_loop(
         fields += [f"augment {training_stats.report0('Progress/augment', float(augment_pipe.p.cpu()) if augment_pipe is not None else 0):.3f}"]
         training_stats.report0('Timing/total_hours', (tick_end_time - start_time) / (60 * 60))
         training_stats.report0('Timing/total_days', (tick_end_time - start_time) / (24 * 60 * 60))
+        if clip_reg_interval is not None:
+            fields += [f"clip_loss {loss_stats['Loss/clip/prob'].mean().cpu():.3f}"]
         if rank == 0:
             print(' '.join(fields))
 
