@@ -167,7 +167,7 @@ def training_loop(
         img = misc.print_module_summary(G, [z, c])
         misc.print_module_summary(D, [img, c])
 
-    loss_stats = training_stats.Collector(regex='Loss/*')
+    loss_stats = training_stats.Collector(regex='Loss/.*')
         
     # Setup augmentation.
     if rank == 0:
